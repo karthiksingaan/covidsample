@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+    <http:listener-config name="covid-data-tracking-api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="covid-data-tracking-api-config" api="covid-data-tracking-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="covid-data-tracking-api-main">
+        <http:listener config-ref="covid-data-tracking-api-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="covid-data-tracking-api-config" />
+		<error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="covid-data-tracking-api-console">
+        <http:listener config-ref="covid-data-tracking-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="covid-data-tracking-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\covid19\v1\cases\covidTracking:covid-data-tracking-api-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  stateName: "California",
+  stateCode: "CA",
+  historicData: [
+    {
+      date: "2020-05-19",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-18",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-17",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-16",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-15",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-14",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-13",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }, 
+    {
+      date: "2020-05-12",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0,
+      peoplePositiveCasesCt: 0,
+      peoplePositiveNewCasesCt: 0,
+      peopleNegativeCasesCt: 0,
+      peopleNegativeNewCt: 0,
+      peoplePendingCasesCt: 0,
+      peopleDeathNewCt: 0,
+      peopleHospCurrentlyCt: 0,
+      peopleHospNewCt: 0,
+      peopleHospCumlCt: 0,
+      peopleInIntnsvCareCurrCt: 0,
+      peopleInIntnsvCareCumlCt: 0,
+      peopleIntubatedCurrentlyCt: 0,
+      peopleIntubatedCumulativeCt: 0
+    }
+  ]
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="8c9adbbf-4054-48da-a7f1-74f727acdcc2" message="#[PAYLOAD]]"/>
+    </flow>
+    <flow name="get:\covid19\v1\cases\eucdc:covid-data-tracking-api-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  countryName: "Japan",
+  countryCode: "JP",
+  historicData: [
+    {
+      date: "2020-05-19",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-18",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-17",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-16",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-15",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-14",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-13",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }, 
+    {
+      date: "2020-05-12",
+      deathCt: 0,
+      reportedCt: 0,
+      activeCaseCt: 0,
+      recoveredCt: 0
+    }
+  ]
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\covid19\v1\cases\jhu:covid-data-tracking-api-config">
+        <logger level="INFO" message="get:\covid19\v1\cases\jhu:covid-data-tracking-api-config" />
+    </flow>
+    <flow name="get:\covid19\v1\cases\newYorkTimes:covid-data-tracking-api-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  zipCd: "63651",
+  counties: [
+    {
+      countyName: "St. Francois County",
+      geo: {
+        rightTopLatLong: -80.3677130000,
+        leftBottomLatLong: 37.6754420000,
+        leftTopLatLong: 37.6754420000,
+        rightBottomLatLong: -80.3677130000
+      },
+      historicData: [
+        {
+          date: "2020-05-18",
+          deathCt: 2,
+          reportedCt: 30,
+          recoveredCt: 0
+        }, 
+        {
+          date: "2020-05-17",
+          deathCt: 2,
+          reportedCt: 30,
+          recoveredCt: 0
+        }, 
+        {
+          date: "2020-05-16",
+          deathCt: 2,
+          reportedCt: 30,
+          recoveredCt: 0
+        }, 
+        {
+          date: "2020-05-15",
+          deathCt: 2,
+          reportedCt: 30,
+          recoveredCt: 0
+        }, 
+        {
+          date: "2020-05-14",
+          deathCt: 2,
+          reportedCt: 30,
+          recoveredCt: 0
+        }, 
+        {
+          date: "2020-05-13",
+          deathCt: 1,
+          reportedCt: 30,
+          recoveredCt: 0
+        }, 
+        {
+          date: "2020-05-12",
+          deathCt: 1,
+          reportedCt: 30,
+          recoveredCt: 0
+        }
+      ]
+    }
+  ]
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\covid19\v1\locations:covid-data-tracking-api-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  zipCd: "01011",
+  geo: {
+    leftTopLatLong: 50,
+    rightTopLatLong: 0,
+    leftBottomLatLong: 0,
+    rightBottomLatLong: 50
+  },
+  counties: [
+    {
+      countyName: "Hampden",
+      reportedCt: 100,
+      deathCt: 50,
+      recoveredCt: 50
+    }, 
+    {
+      countyName: "Hampshire",
+      reportedCt: 50,
+      deathCt: 2,
+      recoveredCt: 48
+    }, 
+    {
+      countyName: "Berkshire",
+      reportedCt: 72,
+      deathCt: 10,
+      recoveredCt: 62
+    }
+  ]
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+    <flow name="get:\covid19\v1\high-level-policy:covid-data-tracking-api-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  Disclaimer: "\"The following is provided as of [REPORTDATE], reported by [SOURCE]\"",
+  Community_regulations: {
+    Gathering_Restriction_Code: "",
+    School_Closure_Code: "",
+    Non_Essential_Business_Closure_Code: "",
+    Social_Distancing_Requirement_Code: "",
+    Face_Covering_Policy_Code: "",
+    Bar_Restrictions_Code: "",
+    Reopening_Plan_Code: "",
+    Stay_at_Home_Requirement_Code: "",
+    Domestic_Travel_Restrictions_Code: "",
+    Restaurant_Restrictions_Code: ""
+  },
+  Source: "Kaiser Family Foundation"
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+</mule>
